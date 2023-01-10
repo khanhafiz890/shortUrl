@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/teris-io/shortid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -26,6 +27,7 @@ type shortenBody struct {
 
 type UrlDoc struct {
 	ID        primitive.ObjectID `bson:"_id"`
+	UrlId     string             `bson:"url_id"`
 	UrlCode   string             `bson:"urlCode"`
 	LongUrl   string             `bson:"longUrl"`
 	ShortUrl  string             `bson:"shortUrl"`
@@ -115,6 +117,7 @@ func shorten(c *gin.Context) {
 		LongUrl:   body.LongUrl,
 		ShortUrl:  newUrl,
 		CreatedAt: time.Now(),
+		UrlId:     uuid.New().String(),
 	}
 
 	_, err := collection.InsertOne(ctx, newDoc)
@@ -170,9 +173,10 @@ func updateOneUrl(ctx *gin.Context) {
 	}
 
 	id := ctx.Param("id")
-	filter := bson.M{"_id": id}
-	upadte := bson.M{"$set": bson.M{"longUrl": body.LongUrl}}
-	_, err := collection.UpdateOne(ctx, filter, upadte)
+	fmt.Println("ID=>", id)
+	filter := bson.D{{"url_id", id}}
+	update := bson.D{{"$set", bson.D{{"longUrl", body.LongUrl}}}}
+	_, err := collection.UpdateOne(ctx, filter, update)
 
 	if err != nil {
 		fmt.Println("Error while updating..", err)
@@ -187,7 +191,7 @@ func updateOneUrl(ctx *gin.Context) {
 
 }
 func deleteOneUrl(ctx *gin.Context) {
-	id:= ctx.Param("id")
+	id := ctx.Param("id")
 	filter := bson.M{"_id": id}
 	_, err := collection.DeleteOne(ctx, filter)
 
@@ -195,7 +199,6 @@ func deleteOneUrl(ctx *gin.Context) {
 		fmt.Println("Error while deleting..", err)
 		return
 	}
-
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Long Url Deleted", "error": false})
 
