@@ -84,7 +84,8 @@ func shorten(c *gin.Context) {
 		return
 	}
 
-	urlCode, idErr := shortid.Generate()
+	shorturlid, idErr := shortid.Generate()
+	urlCode := shorturlid[0:4]
 
 	//if we getting error while generating error from Generate Method
 	if idErr != nil {
