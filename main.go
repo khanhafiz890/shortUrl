@@ -192,7 +192,8 @@ func updateOneUrl(ctx *gin.Context) {
 }
 func deleteOneUrl(ctx *gin.Context) {
 	id := ctx.Param("id")
-	filter := bson.M{"_id": id}
+	fmt.Println("ID=>", id)
+	filter := bson.D{{"url_id", id}}
 	_, err := collection.DeleteOne(ctx, filter)
 
 	if err != nil {
