@@ -25,6 +25,11 @@ type shortenBody struct {
 	LongUrl string `json:"long_url"`
 }
 
+type SubmissionBody struct {
+	LanguageId string `json:"language_id"`
+	SourceCode string `json:"source_code"`
+	StdInput   string `json:"std_in"`
+}
 type UrlDoc struct {
 	ID        primitive.ObjectID `bson:"_id"`
 	UrlId     string             `bson:"url_id"`
@@ -65,8 +70,18 @@ func main() {
 	r.POST("/shorten", shorten)
 	r.PUT("/:id", updateOneUrl)
 	r.DELETE("/:id", deleteOneUrl)
+	r.POST("/submission", handleSubmission)
+	r.GET("/submission/:token", getSubmission)
 
 	r.Run(":5000")
+}
+
+func handleSubmission(c *gin.Context) {
+
+}
+
+func getSubmission(c *gin.Context) {
+
 }
 func shorten(c *gin.Context) {
 	var body shortenBody
@@ -83,7 +98,7 @@ func shorten(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": urlErr.Error()})
 		return
 	}
-
+	// it will short the url not more than 4words
 	shorturlid, idErr := shortid.Generate()
 	urlCode := shorturlid[0:4]
 
@@ -153,9 +168,6 @@ func redirect(c *gin.Context) {
 	c.Redirect(http.StatusPermanentRedirect, longUrl)
 }
 func updateOneUrl(ctx *gin.Context) {
-	// id, _:=primitive.ObjectIDFromHex(urlId)
-	// filter := bson.M{"_id" : id}
-	// update := bson.M{"$set" : bson.M{"ShortUrl":}}
 	var body shortenBody
 
 	// handle error if long url not provided
@@ -175,8 +187,8 @@ func updateOneUrl(ctx *gin.Context) {
 
 	id := ctx.Param("id")
 	fmt.Println("ID=>", id)
-	filter := bson.D{{"url_id", id}}
-	update := bson.D{{"$set", bson.D{{"longUrl", body.LongUrl}}}}
+	filter := bson.D{{Key: "url_id", Value: id}}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "longUrl", Value: body.LongUrl}}}}
 	_, err := collection.UpdateOne(ctx, filter, update)
 
 	if err != nil {
@@ -184,17 +196,13 @@ func updateOneUrl(ctx *gin.Context) {
 		return
 	}
 
-	//  var responsebody  = *ResponseBody
-	//  responsebody.Error = false
-	//  responsebody.Message = "Long Url Updated"
-
 	ctx.JSON(http.StatusOK, gin.H{"message": "Long Url Updated", "error": false})
 
 }
 func deleteOneUrl(ctx *gin.Context) {
 	id := ctx.Param("id")
 	fmt.Println("ID=>", id)
-	filter := bson.D{{"url_id", id}}
+	filter := bson.D{{Key: "url_id", Value: id}}
 	_, err := collection.DeleteOne(ctx, filter)
 
 	if err != nil {
