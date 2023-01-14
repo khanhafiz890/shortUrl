@@ -1,5 +1,5 @@
 ## Url-Shortner
-This is CRUD operations on MongoDB written in Golang. You can **Create, Read, Update, and Delete** URLs from the MongoDB instance using HTTP requests using Postman API.
+This is **CRUD** operations on MongoDB written in Golang. You can **Create, Read, Update, and Delete** URLs from the MongoDB instance using HTTP requests using Postman API.
 
 **How to Run?**
 
@@ -12,7 +12,7 @@ To start our project we will install our dependencies in our case will be the Mo
 Following the above next install the dependencies using :
 **go get ./...**
 
-Finally, run the app on port 8080:
+Finally, run the app on port 5000:
 go run .
 
 **Endpoints:**
@@ -29,7 +29,7 @@ Send a GET request to /:code:
 
 Below is an example, Using Postman API GET send this request along with code generated in MongoDB
 ```
-GET - http://localhost:5000/IJbr
+GET - http://localhost:5000/daig
 ```
 Response:
 
@@ -48,14 +48,14 @@ POST - http://localhost:5000/shorten
 Body:
 ```
 {
-    "long_url":"https://www.youtube.com/watch?v=-LEye3S"
+  "long_url":"https://en.wikipedia.org/wiki/Kannada"
 }
 ```
 Response:
 ```
 {
-    "db_id": "63be8d7f13e5f9f6dba1dda4",
-    "newUrl": "http://localhost:5000/fkyw"
+    "db_id": "63c2dc223f6a7eb951cc8472",
+    "newUrl": "http://localhost:5000/daig"
 }
 ```
 **Update URL:**
@@ -64,15 +64,16 @@ The below endpoint helps to update the existing URL in the database.
 
 Send PUT request to /:id
 ```
-PUT - http://localhost:8080/f5fd44e3-6434-4949-995e-e2eccf69c578
+PUT - http://localhost:5000/a753ee84-282d-4f9a-a0b6-1698121d990b
 ```
 
 Response:
-
+```
 {
     "error": false,
     "message": "Long Url Updated"
 }
+```
 
 **Delete URL:**
 
@@ -80,17 +81,18 @@ The below endpoint performs a delete URL operation in the database
 
 Send DELETE request to /:id
 ```
-DELETE - http://localhost:8080/f5fd44e3-6434-4949-995e-e2eccf69c578
+DELETE - http://localhost:5000/a753ee84-282d-4f9a-a0b6-1698121d990b
 ```
 Response:
-
+```
 {
     "error": false,
     "message": "Long Url Deleted"
 }
+```
 
-The above procedure helps you to perform URL CRUD operations in MongoDB.
+The above procedure helps you to perform **URL CRUD operations in MongoDB.**
 
-Note:
+**Note:**
 
 :code and :id that has been used above depend on my MongoDB creation. That is unique for every Developer.
