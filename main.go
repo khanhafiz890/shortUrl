@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -162,6 +163,23 @@ func handleSubmission(c *gin.Context) {
 }
 
 func getSubmission(c *gin.Context) {
+	token := c.Query("token")
+	fmt.Println("token =>", token)
+
+	url := fmt.Sprintf("https://judge0-ce.p.rapidapi.com/submissions/%s?base64_encoded=true&fields=*", token)
+
+	req, _ := http.NewRequest("GET", url, nil)
+
+	req.Header.Add("X-RapidAPI-Key", "b6ee9d55camshe7ac66ecbd9ba32p10b88ajsn4d6a39a75634")
+	req.Header.Add("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com")
+
+	res, _ := http.DefaultClient.Do(req)
+
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+
+	fmt.Println(res)
+	fmt.Println(string(body))
 
 }
 func shorten(c *gin.Context) {
