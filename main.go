@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -29,6 +28,11 @@ type shortenBody struct {
 }
 
 type SubmissionBody struct {
+	LanguageId string `json:"language_id"`
+	SourceCode string `json:"source_code"`
+	StdInput   string `json:"std_in"`
+}
+type SubmissionRequest struct {
 	LanguageId string `json:"language_id"`
 	SourceCode string `json:"source_code"`
 	StdInput   string `json:"std_in"`
@@ -176,10 +180,31 @@ func getSubmission(c *gin.Context) {
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
+	///////
+	fmt.Println(res.Body)
+	decoder := json.NewDecoder(res.Body)
+	var getReq SubmissionRequest
 
-	fmt.Println(res)
-	fmt.Println(string(body))
+	err := decoder.Decode(&getReq)
+	if err == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	fmt.Println("-------------------")
+
+	fmt.Println(getReq.SourceCode)
+
+	fmt.Println("---------------------")
+
+	c.JSON(200, gin.H{
+		"error": false,
+
+		"message":     "Data retrived successfully",
+		"source_code": getReq.SourceCode,
+		"lang_id":     getReq.LanguageId,
+		"std_id":      getReq.StdInput,
+	})
 
 }
 func shorten(c *gin.Context) {
