@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -43,6 +45,13 @@ type ResponseBody struct {
 	Message string `json:"message"`
 	Error   bool   `json:"error"`
 }
+type TokenBody struct {
+	TokenID primitive.ObjectID `bson:"token_id"`
+	Token   string             `bson:"token"`
+}
+type ResTokenBody struct {
+	Token string `bson:"token"`
+}
 
 func init() {
 	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
@@ -71,12 +80,84 @@ func main() {
 	r.PUT("/:id", updateOneUrl)
 	r.DELETE("/:id", deleteOneUrl)
 	r.POST("/submission", handleSubmission)
-	r.GET("/submission/:token", getSubmission)
+	r.GET("/submission/", getSubmission)
 
 	r.Run(":5000")
 }
 
 func handleSubmission(c *gin.Context) {
+	var body SubmissionBody
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	url := "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&fields=*"
+
+	payload := map[string]string{"language_id": body.LanguageId, "source_code": body.SourceCode, "stdin": body.StdInput}
+	//payload := map[string]SubmissionBody{}
+	json_data, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Error while marshaling")
+	}
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json_data))
+
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("X-RapidAPI-Key", "b6ee9d55camshe7ac66ecbd9ba32p10b88ajsn4d6a39a75634")
+	req.Header.Add("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com")
+
+	res, _ := http.DefaultClient.Do(req)
+
+	defer res.Body.Close()
+	////////
+	fmt.Println(res.Body)
+	decoder := json.NewDecoder(res.Body)
+	var tokenBody ResTokenBody
+
+	err = decoder.Decode(&tokenBody)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	fmt.Println("-------------------")
+	//fmt.Println(tokenBody)
+	fmt.Println(tokenBody.Token)
+
+	fmt.Println("---------------------")
+
+	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
+	client, err := mongo.Connect(ctx, clientOptons)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	collection = client.Database("test").Collection("token")
+	var docId = primitive.NewObjectID()
+	newDoc := &TokenBody{
+
+		TokenID: docId,
+		Token:   tokenBody.Token,
+	}
+	s, err := collection.InsertOne(ctx, newDoc)
+	fmt.Println(s)
+
+	log.Print("DB set for token is connected")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"Message": "Token is created",
+		"token":   tokenBody.Token,
+	})
 
 }
 
