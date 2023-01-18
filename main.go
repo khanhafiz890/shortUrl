@@ -34,7 +34,7 @@ type SubmissionBody struct {
 	StdInput   string `json:"std_in"`
 }
 type SubmissionRequest struct {
-	LanguageId string `json:"language_id"`
+	LanguageId int    `json:"language_id"`
 	SourceCode string `json:"source_code"`
 	StdInput   string `json:"std_in"`
 }
