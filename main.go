@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -168,7 +169,7 @@ func handleSubmission(c *gin.Context) {
 
 func getSubmission(c *gin.Context) {
 	token := c.Query("token")
-	fmt.Println("token =>", token)
+	fmt.Println("token =>", token)
 
 	url := fmt.Sprintf("https://judge0-ce.p.rapidapi.com/submissions/%s?base64_encoded=true&fields=*", token)
 
@@ -180,30 +181,23 @@ func getSubmission(c *gin.Context) {
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
-	///////
-	fmt.Println(res.Body)
-	decoder := json.NewDecoder(res.Body)
-	var getReq SubmissionRequest
+	body, _ := ioutil.ReadAll(res.Body)
+	fmt.Println("response body ==>", string(body))
 
-	err := decoder.Decode(&getReq)
-	if err == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	var getReq SubmissionRequest
+	err := json.Unmarshal([]byte(body), &getReq)
+
+	if err != nil {
+		fmt.Println("Error while marshling")
 	}
 
-	fmt.Println("-------------------")
-
-	fmt.Println(getReq.SourceCode)
-
-	fmt.Println("---------------------")
+	fmt.Println("Struct body=====>", getReq)
 
 	c.JSON(200, gin.H{
 		"error": false,
 
-		"message":     "Data retrived successfully",
-		"source_code": getReq.SourceCode,
-		"lang_id":     getReq.LanguageId,
-		"std_id":      getReq.StdInput,
+		"message": "Data retrived successfully",
+		"Data":    getReq,
 	})
 
 }
