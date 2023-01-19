@@ -20,21 +20,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Creating a Mongo DB Collection
 var collection *mongo.Collection
 var ctx = context.TODO()
+
+// Creating a LocalHost url
 var baseUrl = "http://localhost:5000/"
 
+// Creating a Structure
 type shortenBody struct {
 	LongUrl string `json:"long_url"`
 }
 
 type SubmissionBody struct {
 	LanguageId string `json:"language_id"`
-	SourceCode string `json:"source_code"`
-	StdInput   string `json:"std_in"`
-}
-type SubmissionRequest struct {
-	LanguageId int    `json:"language_id"`
 	SourceCode string `json:"source_code"`
 	StdInput   string `json:"std_in"`
 }
@@ -47,10 +46,6 @@ type UrlDoc struct {
 	CreatedAt time.Time          `bson:"createdAt"`
 }
 
-type ResponseBody struct {
-	Message string `json:"message"`
-	Error   bool   `json:"error"`
-}
 type TokenBody struct {
 	TokenID primitive.ObjectID `bson:"token_id"`
 	Token   string             `bson:"token"`
@@ -59,6 +54,18 @@ type ResTokenBody struct {
 	Token string `bson:"token"`
 }
 
+type ResponseBody struct {
+	Message string `json:"message"`
+	Error   bool   `json:"error"`
+}
+
+type SubmissionRequest struct {
+	LanguageId int    `json:"language_id"`
+	SourceCode string `json:"source_code"`
+	Stdin      string `json:"stdin"`
+}
+
+// Connecting Mongo DB to localhost
 func init() {
 	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
 	client, err := mongo.Connect(ctx, clientOptons)
@@ -73,54 +80,68 @@ func init() {
 
 	collection = client.Database("test").Collection("urls")
 	log.Print("DB connected")
+
 }
 
+// main function for CRUD operations
 func main() {
 	r := gin.Default()
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusAccepted, gin.H{"message": "shorten your url"})
 	})
-	r.GET("/:code", redirect)
-	r.POST("/shorten", shorten)
-	r.PUT("/:id", updateOneUrl)
-	r.DELETE("/:id", deleteOneUrl)
-	r.POST("/submission", handleSubmission)
-	r.GET("/submission/", getSubmission)
+	r.GET("/:code", redirect)               // Read operation End Point for shorten url
+	r.POST("/shorten", shorten)             // Create Operation End Point for shorten url
+	r.PUT("/:id", updateOneUrl)             // Update Operation End Point for shorten url
+	r.DELETE("/:id", deleteOneUrl)          // Delete Operation End Point for shorten url
+	r.POST("/submission", handleSubmission) // Create operation End Point for rapid api(Judge CE 0)
+	r.GET("/submission", getSubmission)     // Read operation End Point for rapid api(Judge CE 0)
 
-	r.Run(":5000")
+	r.Run(":5000") //  http port
 }
 
+// " /submission "  Create function End Point for rapid api(Judge CE 0)
 func handleSubmission(c *gin.Context) {
+
+	// Structre of SubmissionBody
 	var body SubmissionBody
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// judge0-ce url
 	url := "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&fields=*"
 
-	payload := map[string]string{"language_id": body.LanguageId, "source_code": body.SourceCode, "stdin": body.StdInput}
-	//payload := map[string]SubmissionBody{}
+	// maping to get the data that passed in body
+	payload := map[string]string{"language_id": (body.LanguageId), "source_code": body.SourceCode, "stdin": body.StdInput}
+
+	// Marshalling the json data
 	json_data, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Println("Error while marshaling")
 	}
 
+	// sending request
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json_data))
 
+	// Request header fields
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-RapidAPI-Key", "b6ee9d55camshe7ac66ecbd9ba32p10b88ajsn4d6a39a75634")
 	req.Header.Add("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com")
 
+	// reciving the response
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
-	////////
+
 	fmt.Println(res.Body)
 	decoder := json.NewDecoder(res.Body)
-	var tokenBody ResTokenBody
+	fmt.Println(decoder)
 
+	//structure for ResTokenBody
+	var tokenBody ResTokenBody
 	err = decoder.Decode(&tokenBody)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -128,11 +149,10 @@ func handleSubmission(c *gin.Context) {
 	}
 
 	fmt.Println("-------------------")
-	//fmt.Println(tokenBody)
 	fmt.Println(tokenBody.Token)
-
 	fmt.Println("---------------------")
 
+	// Creating a mongo DB for token storing
 	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
 	client, err := mongo.Connect(ctx, clientOptons)
 	if err != nil {
@@ -154,12 +174,13 @@ func handleSubmission(c *gin.Context) {
 	s, err := collection.InsertOne(ctx, newDoc)
 	fmt.Println(s)
 
-	log.Print("DB set for token is connected")
+	log.Print("DB set for token connected")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// http method status : 201
 	c.JSON(http.StatusCreated, gin.H{
 		"Message": "Token is created",
 		"token":   tokenBody.Token,
@@ -167,24 +188,32 @@ func handleSubmission(c *gin.Context) {
 
 }
 
+// " /submission/:token "  Create function End Point for rapid api(Judge CE 0)
 func getSubmission(c *gin.Context) {
+
+	// Quary param for token
 	token := c.Query("token")
 	fmt.Println("token =>", token)
 
+	//judge0-ce url
 	url := fmt.Sprintf("https://judge0-ce.p.rapidapi.com/submissions/%s?base64_encoded=true&fields=*", token)
 
+	// get request from http
 	req, _ := http.NewRequest("GET", url, nil)
-
+	//Request header fields
 	req.Header.Add("X-RapidAPI-Key", "b6ee9d55camshe7ac66ecbd9ba32p10b88ajsn4d6a39a75634")
 	req.Header.Add("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com")
-
+	//reciving the response
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
 	fmt.Println("response body ==>", string(body))
 
+	//Structure for SubmissionRequest
 	var getReq SubmissionRequest
+
+	//Unmarshal the body
 	err := json.Unmarshal([]byte(body), &getReq)
 
 	if err != nil {
@@ -192,7 +221,31 @@ func getSubmission(c *gin.Context) {
 	}
 
 	fmt.Println("Struct body=====>", getReq)
+	// Connecting to DB
+	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
+	client, err := mongo.Connect(ctx, clientOptons)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//Creating a Collection
+	collection = client.Database("test").Collection("source Code")
+
+	newDoc := &SubmissionRequest{
+
+		LanguageId: getReq.LanguageId,
+		SourceCode: getReq.SourceCode,
+		Stdin:      getReq.Stdin,
+	}
+
+	//Query for insert data
+	sCode, err := collection.InsertOne(ctx, newDoc)
+	fmt.Println(sCode)
+	//Status OK response: 200
 	c.JSON(200, gin.H{
 		"error": false,
 
@@ -201,6 +254,8 @@ func getSubmission(c *gin.Context) {
 	})
 
 }
+
+// Create Operation function End Point for shorten url
 func shorten(c *gin.Context) {
 	var body shortenBody
 
@@ -216,7 +271,7 @@ func shorten(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": urlErr.Error()})
 		return
 	}
-	// it will short the url not more than 4words
+	// it will short the url param not more than 4words
 	shorturlid, idErr := shortid.Generate()
 	urlCode := shorturlid[0:4]
 
@@ -225,11 +280,10 @@ func shorten(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": idErr.Error()})
 		return
 	}
-
+	// map[string]interface{}
 	var result bson.M
-
+	// Query to fetch data
 	queryErr := collection.FindOne(ctx, bson.D{{Key: "longUrl", Value: body.LongUrl}}).Decode(&result)
-
 	if queryErr != nil {
 		if queryErr != mongo.ErrNoDocuments {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": queryErr.Error()})
@@ -241,10 +295,11 @@ func shorten(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Code in use: %s", urlCode)})
 		return
 	}
-
+	//concatinating urlcode string to baseUrl
 	var newUrl = baseUrl + urlCode
+	//creating object id
 	var docId = primitive.NewObjectID()
-
+	// Structure for UrlDoc
 	newDoc := &UrlDoc{
 		ID:        docId,
 		UrlCode:   urlCode,
@@ -253,13 +308,13 @@ func shorten(c *gin.Context) {
 		CreatedAt: time.Now(),
 		UrlId:     uuid.New().String(),
 	}
-
+	//insrt that data into Mongo DB
 	_, err := collection.InsertOne(ctx, newDoc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
+	// http method status : 201
 	c.JSON(http.StatusCreated, gin.H{
 		"newUrl": newUrl,
 
@@ -267,9 +322,16 @@ func shorten(c *gin.Context) {
 	})
 }
 
+// Update  function End Point for shorten url
 func redirect(c *gin.Context) {
+
+	//fetching param from url
 	code := c.Param("code")
+
+	// map[string]interface{}
 	var result bson.M
+
+	//fetching data from database
 	queryErr := collection.FindOne(ctx, bson.D{{Key: "urlCode", Value: code}}).Decode(&result)
 
 	if queryErr != nil {
@@ -281,11 +343,16 @@ func redirect(c *gin.Context) {
 			return
 		}
 	}
+
 	log.Print(result["longUrl"])
 	var longUrl = fmt.Sprint(result["longUrl"])
+
+	//Checking response moved to url
 	c.Redirect(http.StatusPermanentRedirect, longUrl)
 }
 func updateOneUrl(ctx *gin.Context) {
+
+	//structure for shortenBody
 	var body shortenBody
 
 	// handle error if long url not provided
@@ -303,6 +370,7 @@ func updateOneUrl(ctx *gin.Context) {
 		return
 	}
 
+	//update the new url and store it in DB
 	id := ctx.Param("id")
 	fmt.Println("ID=>", id)
 	filter := bson.D{{Key: "url_id", Value: id}}
@@ -314,10 +382,15 @@ func updateOneUrl(ctx *gin.Context) {
 		return
 	}
 
+	//response status 200
 	ctx.JSON(http.StatusOK, gin.H{"message": "Long Url Updated", "error": false})
 
 }
+
+// Delete function End Point for shortening url
 func deleteOneUrl(ctx *gin.Context) {
+
+	//deleting the url using uuid
 	id := ctx.Param("id")
 	fmt.Println("ID=>", id)
 	filter := bson.D{{Key: "url_id", Value: id}}
@@ -328,6 +401,7 @@ func deleteOneUrl(ctx *gin.Context) {
 		return
 	}
 
+	//status response 200
 	ctx.JSON(http.StatusOK, gin.H{"message": "Long Url Deleted", "error": false})
 
 }
