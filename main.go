@@ -153,18 +153,18 @@ func handleSubmission(c *gin.Context) {
 	fmt.Println("---------------------")
 
 	// Creating a mongo DB for token storing
-	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
-	client, err := mongo.Connect(ctx, clientOptons)
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientSource, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = client.Ping(ctx, nil)
+	err = clientSource.Ping(ctx, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	collection = client.Database("test").Collection("token")
+	collection = clientSource.Database("test").Collection("token")
 	var docId = primitive.NewObjectID()
 	newDoc := &TokenBody{
 
