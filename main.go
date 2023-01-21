@@ -210,7 +210,7 @@ func handleSubmission(c *gin.Context) {
 func getSubmission(c *gin.Context) {
 
 	// Quary param for token
-	token := c.Query("token")
+	token := c.Param("token")
 	fmt.Println("token =>", token)
 	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
 	client, err := mongo.Connect(ctx, clientOptons)
