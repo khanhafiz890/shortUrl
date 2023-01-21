@@ -98,12 +98,12 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusAccepted, gin.H{"message": "shorten your url"})
 	})
-	r.GET("/:code", redirect)               // Read operation End Point for shorten url
-	r.POST("/shorten", shorten)             // Create Operation End Point for shorten url
-	r.PUT("/:id", updateOneUrl)             // Update Operation End Point for shorten url
-	r.DELETE("/:id", deleteOneUrl)          // Delete Operation End Point for shorten url
-	r.POST("/submission", handleSubmission) // Create operation End Point for rapid api(Judge CE 0)
-	r.GET("/submission", getSubmission)     // Read operation End Point for rapid api(Judge CE 0)
+	r.GET("/:code", redirect)                  // Read operation End Point for shorten url
+	r.POST("/shorten", shorten)                // Create Operation End Point for shorten url
+	r.PUT("/:id", updateOneUrl)                // Update Operation End Point for shorten url
+	r.DELETE("/:id", deleteOneUrl)             // Delete Operation End Point for shorten url
+	r.POST("/submission", handleSubmission)    // Create operation End Point for rapid api(Judge CE 0)
+	r.GET("/submission/:token", getSubmission) // Read operation End Point for rapid api(Judge CE 0)
 
 	r.Run(":5000") //  http port
 }
