@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+
 	"log"
 	"net/http"
 	"net/url"
@@ -47,11 +47,17 @@ type UrlDoc struct {
 }
 
 type TokenBody struct {
-	TokenID primitive.ObjectID `bson:"token_id"`
-	Token   string             `bson:"token"`
+	TokenID    primitive.ObjectID `bson:"token_id"`
+	Token      string             `bson:"token"`
+	LanguageId int                `json:"language_id"`
+	SourceCode string             `json:"source_code"`
+	Stdin      string             `json:"stdin"`
 }
 type ResTokenBody struct {
-	Token string `bson:"token"`
+	Token      string `bson:"token"`
+	LanguageId int    `json:"language_id"`
+	SourceCode string `json:"source_code"`
+	Stdin      string `json:"stdin"`
 }
 
 type ResponseBody struct {
@@ -60,9 +66,11 @@ type ResponseBody struct {
 }
 
 type SubmissionRequest struct {
-	LanguageId int    `json:"language_id"`
-	SourceCode string `json:"source_code"`
-	Stdin      string `json:"stdin"`
+	TokenID    primitive.ObjectID `bson:"token_id"`
+	LanguageId int                `json:"language_id"`
+	SourceCode string             `json:"source_code"`
+	Stdin      string             `json:"stdin"`
+	Token      string             `json:"token"`
 }
 
 // Connecting Mongo DB to localhost
@@ -111,7 +119,8 @@ func handleSubmission(c *gin.Context) {
 	}
 
 	// judge0-ce url
-	url := "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&fields=*"
+
+	url := "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&wait=true&fields=*"
 
 	// maping to get the data that passed in body
 	payload := map[string]string{"language_id": (body.LanguageId), "source_code": body.SourceCode, "stdin": body.StdInput}
@@ -121,6 +130,7 @@ func handleSubmission(c *gin.Context) {
 	if err != nil {
 		fmt.Println("Error while marshaling")
 	}
+	fmt.Println("byte formate", string(json_data))
 
 	// sending request
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(json_data))
@@ -137,6 +147,7 @@ func handleSubmission(c *gin.Context) {
 	defer res.Body.Close()
 
 	fmt.Println(res.Body)
+
 	decoder := json.NewDecoder(res.Body)
 	fmt.Println(decoder)
 
@@ -153,6 +164,7 @@ func handleSubmission(c *gin.Context) {
 	fmt.Println("---------------------")
 
 	// Creating a mongo DB for token storing
+
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 	clientSource, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
@@ -164,12 +176,15 @@ func handleSubmission(c *gin.Context) {
 		log.Fatal(err)
 	}
 
-	collection = clientSource.Database("test").Collection("token")
+	collection = clientSource.Database("test").Collection("data")
 	var docId = primitive.NewObjectID()
 	newDoc := &TokenBody{
 
-		TokenID: docId,
-		Token:   tokenBody.Token,
+		TokenID:    docId,
+		Token:      tokenBody.Token,
+		LanguageId: tokenBody.LanguageId,
+		SourceCode: tokenBody.SourceCode,
+		Stdin:      tokenBody.Stdin,
 	}
 	s, err := collection.InsertOne(ctx, newDoc)
 	fmt.Println(s)
@@ -182,8 +197,11 @@ func handleSubmission(c *gin.Context) {
 
 	// http method status : 201
 	c.JSON(http.StatusCreated, gin.H{
-		"Message": "Token is created",
-		"token":   tokenBody.Token,
+		"Message":     "Token is created",
+		"token":       tokenBody.Token,
+		"language_id": tokenBody.LanguageId,
+		"source_code": tokenBody.SourceCode,
+		"stdin":       tokenBody.Stdin,
 	})
 
 }
@@ -194,34 +212,6 @@ func getSubmission(c *gin.Context) {
 	// Quary param for token
 	token := c.Query("token")
 	fmt.Println("token =>", token)
-
-	//judge0-ce url
-	url := fmt.Sprintf("https://judge0-ce.p.rapidapi.com/submissions/%s?base64_encoded=true&fields=*", token)
-
-	// get request from http
-	req, _ := http.NewRequest("GET", url, nil)
-	//Request header fields
-	req.Header.Add("X-RapidAPI-Key", "b6ee9d55camshe7ac66ecbd9ba32p10b88ajsn4d6a39a75634")
-	req.Header.Add("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com")
-	//reciving the response
-	res, _ := http.DefaultClient.Do(req)
-
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
-	fmt.Println("response body ==>", string(body))
-
-	//Structure for SubmissionRequest
-	var getReq SubmissionRequest
-
-	//Unmarshal the body
-	err := json.Unmarshal([]byte(body), &getReq)
-
-	if err != nil {
-		fmt.Println("Error while marshling")
-	}
-
-	fmt.Println("Struct body=====>", getReq)
-	// Connecting to DB
 	clientOptons := options.Client().ApplyURI("mongodb://localhost:27017")
 	client, err := mongo.Connect(ctx, clientOptons)
 	if err != nil {
@@ -233,24 +223,22 @@ func getSubmission(c *gin.Context) {
 		log.Fatal(err)
 	}
 	//Creating a Collection
-	collection = client.Database("test").Collection("source Code")
-
-	newDoc := &SubmissionRequest{
-
-		LanguageId: getReq.LanguageId,
-		SourceCode: getReq.SourceCode,
-		Stdin:      getReq.Stdin,
+	collection = client.Database("test").Collection("data")
+	filter := bson.M{"token": token}
+	var getReq SubmissionRequest
+	err = collection.FindOne(context.TODO(), filter).Decode(&getReq)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	//Query for insert data
-	sCode, err := collection.InsertOne(ctx, newDoc)
-	fmt.Println(sCode)
+	fmt.Println(getReq)
+
 	//Status OK response: 200
 	c.JSON(200, gin.H{
 		"error": false,
 
 		"message": "Data retrived successfully",
-		"Data":    getReq,
+		"data":    getReq,
 	})
 
 }
@@ -290,6 +278,7 @@ func shorten(c *gin.Context) {
 			return
 		}
 	}
+	fmt.Println(result)
 
 	if len(result) > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Code in use: %s", urlCode)})
